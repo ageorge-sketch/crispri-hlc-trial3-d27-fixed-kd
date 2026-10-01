@@ -1341,9 +1341,11 @@ def _(
             xv = np.asarray(xv); yv = np.asarray(yv)
             if not len(xv):
                 continue
+            _color = colors[i % len(colors)]
             fig.add_trace(go.Histogram2dContour(
                 x=xv, y=yv, name=f"{label} (n={len(xv):,})",
-                contours=dict(coloring="lines"), line=dict(width=2, color=colors[i % len(colors)]),
+                contours=dict(coloring="lines", showlines=True),
+                line=dict(width=2, color=_color), colorscale=[[0, _color], [1, _color]],
                 showscale=False, showlegend=True, ncontours=8,
             ))
         if gate is not None:
