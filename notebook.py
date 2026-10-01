@@ -1344,7 +1344,7 @@ def _(
             fig.add_trace(go.Histogram2dContour(
                 x=xv, y=yv, name=f"{label} (n={len(xv):,})",
                 contours=dict(coloring="lines"), line=dict(width=2, color=colors[i % len(colors)]),
-                showscale=False, ncontours=8,
+                showscale=False, showlegend=True, ncontours=8,
             ))
         if gate is not None:
             add_threshold(fig, gate, gate_label, color="red", y=1.05)
