@@ -299,7 +299,7 @@ def _(
             traces[well_labels[w]] = vals
             pooled_for_range.append(vals)
         pooled = np.concatenate(pooled_for_range)
-        xr = gated_range(naive_vals, pooled, hi_pct=99.0)
+        xr = gated_range(naive_vals, pooled, hi_pct=99.0, group_vals=list(traces.values()))
         cofactor = max(gate, 1.0) / 5.0
 
         def _tx(v):
@@ -643,7 +643,12 @@ def _(
         gate50 = float(np.percentile(control_vals, 50))
 
         pooled_vals = np.concatenate([d[readout_channel].values for _, d in gated_by_well.values() if len(d)])
-        xr = gated_range(naive_vals_raw, pooled_vals, hi_pct=99.0)
+        _strat_group_vals_by_label = {}
+        for _, (label, d) in gated_by_well.items():
+            if len(d):
+                _strat_group_vals_by_label.setdefault(label, []).append(d[readout_channel].values)
+        _strat_group_vals = [np.concatenate(vs) for vs in _strat_group_vals_by_label.values()]
+        xr = gated_range(naive_vals_raw, pooled_vals, hi_pct=99.0, group_vals=_strat_group_vals)
         cofactor = channel_cofactor(readout_channel)
 
         def _tx(v):
@@ -1259,14 +1264,23 @@ def _(
             mask &= d[chan].values > thr
         return d[mask]
 
-    def gated_range(naive_vals, pooled_vals, pad_frac: float = 0.10, hi_pct: float = 99.0, lo_pct: float = 1.0):
+    def gated_range(naive_vals, pooled_vals, pad_frac: float = 0.10, hi_pct: float = 99.0, lo_pct: float = 1.0, group_vals=None):
         """Right edge: hi_pct-of-pooled-data plus padding (existing convention).
-        Left edge: lo_pct (default 1st percentile) of the UNSTAINED control's own
-        signal, no further left padding -- keeps the plot from being dominated by
-        the unstained reference's low-signal tail."""
+        Left edge: lo_pct (default 1st percentile) of whichever population --
+        the unstained control, or any condition group passed via group_vals --
+        has the LOWEST signal. A fixed floor at only the unstained control's
+        percentile was clipping real cells that legitimately fall below the
+        unstained reference (seen in infection-marker plots), so every
+        candidate population's own lo_pct percentile is computed and the
+        minimum of those sets the floor."""
         naive_vals = np.asarray(naive_vals)
         pooled_vals = np.asarray(pooled_vals)
-        lo_anchor = np.percentile(naive_vals, lo_pct) if len(naive_vals) else np.percentile(pooled_vals, lo_pct)
+        candidates = [naive_vals] if len(naive_vals) else []
+        if group_vals:
+            candidates.extend(np.asarray(g) for g in group_vals if len(g))
+        if not candidates:
+            candidates = [pooled_vals]
+        lo_anchor = min(float(np.percentile(c, lo_pct)) for c in candidates if len(c))
         hi_anchor = np.percentile(pooled_vals, hi_pct)
         span = max(hi_anchor - lo_anchor, 1.0)
         return lo_anchor, hi_anchor + pad_frac * span
@@ -1597,7 +1611,12 @@ def _(
         control_mfi = float(np.median(control_vals)) if len(control_vals) else float("nan")
 
         pooled_vals = np.concatenate([d[readout_channel].values for _, d in gated_by_well.values() if len(d)])
-        xr = gated_range(naive_vals, pooled_vals, hi_pct=99.0)
+        _group_vals_by_label = {}
+        for _, (label, d) in gated_by_well.items():
+            if len(d):
+                _group_vals_by_label.setdefault(label, []).append(d[readout_channel].values)
+        _group_vals_for_range = [np.concatenate(vs) for vs in _group_vals_by_label.values()]
+        xr = gated_range(naive_vals, pooled_vals, hi_pct=99.0, group_vals=_group_vals_for_range)
 
         # One fixed biexponential cofactor per channel (cached, derived from the
         # shared unstained reference well), not recomputed per-arm from this
@@ -1783,7 +1802,14 @@ def _(
                 d_pre[_primary_marker_channel].values for w in all_wells
                 for d_pre in [debris_gate(w)] if len(d_pre)
             ]) if all_wells else np.array([])
-            _infect_xr = gated_range(_marker_naive_vals, _infect_pooled, hi_pct=99.0)
+            _infect_raw_by_label = {}
+            for label, wells, _ in groups:
+                for w in wells:
+                    d_pre = debris_gate(w)
+                    if len(d_pre):
+                        _infect_raw_by_label.setdefault(label, []).append(d_pre[_primary_marker_channel].values)
+            _infect_group_vals = [np.concatenate(vs) for vs in _infect_raw_by_label.values()]
+            _infect_xr = gated_range(_marker_naive_vals, _infect_pooled, hi_pct=99.0, group_vals=_infect_group_vals)
             _infect_xr_t = (float(_tx_marker(_infect_xr[0])), float(_tx_marker(_infect_xr[1])))
             _infect_gate_t = float(_tx_marker(_marker_gate_val)) if _marker_gate_val is not None else None
             _infect_gate_label = f"infection gate = {_marker_gate_val:,.0f}" if _marker_gate_val is not None else ""
