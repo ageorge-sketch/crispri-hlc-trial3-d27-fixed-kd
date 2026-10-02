@@ -1810,6 +1810,16 @@ def _(
             ])
             _plot_n += 3
 
+        if _marker_channels and sample_sheet.loc[naive_well, "Cell Line"] != "8_3":
+            infection_blocks.append(mo.callout(mo.md(
+                "*Caveat: compensation is calibrated from 8_3-cell single-stain controls "
+                "(no single-stain wells exist for this arm's own cell line), so this arm's "
+                "unstained-reference line sits at a different baseline than the true "
+                "compensation zero-point -- cells scattered below it (even below 0) reflect "
+                "that baseline mismatch, not necessarily a gating error. % infected is still "
+                "reliable since the gate is set from this same arm's own reference well.*"
+            ), kind="warn"))
+
         if len(_marker_channels) > 1:
             infection_blocks.append(mo.md(
                 f"*This arm's knockdown gate is double-gated: cells must pass **all "
