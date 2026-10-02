@@ -16,7 +16,7 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pd):
     _arms_overview_rows = [
         {"Arm": "Arm 1", "Construct / cell line": "pDRT103/pDRT106 split-GFP, 8_3",
@@ -2139,7 +2139,7 @@ def _(build_arm, infection_gate_widgets):
     return arm6_content_base, arm6_summary
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     ssc_cap_slider = mo.ui.slider(
         start=0, stop=5_000_000, step=10_000, value=3_000_000,
@@ -2150,7 +2150,7 @@ def _(mo):
     return (ssc_cap_slider,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(WELLS, debris_gate, go, mo, pd, plot_overview, plot_result):
     _TIME_QC_ROWS = []
     for _w in WELLS:
