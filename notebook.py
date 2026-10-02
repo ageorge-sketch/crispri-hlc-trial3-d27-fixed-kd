@@ -21,11 +21,10 @@ def _(mo):
     mo.md("""
     # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
 
-    Six CD81 knockdown arms from the fixed D27 sample sheet, each a different
-    viral-delivery construct and/or cell line. Knockdown = percentage-point shift
-    in "% of cells below a fixed gate" on the compensated CD81 channel (guide vs.
-    mock), within the infection/guide-positive population, at the 1st-percentile
-    (tail) and 50th-percentile (population) thresholds.
+    Six CD81-knockdown arms, each a different viral-delivery construct and/or
+    cell line. Knockdown = percentage-point shift in "% of cells below a gate"
+    on the CD81 channel (guide vs. mock), at the 1st- and 50th-percentile
+    thresholds.
     """)
     return
 
@@ -134,20 +133,18 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.accordion({
-        "How to read each arm's panel (click to expand)": mo.md("""
-    Each arm tab has a collapsed construct note, a **Well metadata / Gating
-    hierarchy / Infection-guide gating** tab group, a CD81-readout
-    histogram+scatter (dashed red/purple = 1st-/50th-percentile-of-mock gates),
-    per-replicate bar charts, and a summary table -- replicates are pooled in
-    histograms/scatter but always shown one-per-well in bars and tables, labeled
-    by condition + replicate number, never a well ID.
+    mo.md("""
+    ### How to read each panel below
+    Each tab is one arm: a collapsed construct note, **Well metadata / Gating
+    hierarchy / Infection-guide gating** tabs, a CD81-readout histogram +
+    scatter (dashed red/purple = 1st-/50th-percentile-of-mock gates),
+    per-replicate bar charts, and a summary table. Replicates pool in
+    histograms/scatter but always show one-per-well in bars/tables, labeled by
+    condition + replicate, never a well ID.
 
-    Every plot is numbered (Plot N); click "Details" under a title for the
-    Why/How/How-to-read note, and look for the *Result* line after each plot for
-    the actual computed numbers.
+    Every plot is numbered; click "Details" for the full Why/How note, and see
+    the *Result* line after each plot for the computed numbers.
     """)
-    })
     return
 
 
@@ -1467,11 +1464,14 @@ def _(
         return out
 
     def plot_overview(n, title, why, how, how_to_read):
+        """Standard pre-plot overview block: Plot N and the conclusion-oriented
+        "why" are shown directly; the "how" (calculation/gating methodology) and
+        "how to read it" prose are collapsed into a hidden-by-default accordion
+        so the notebook reads as results-first."""
         return mo.vstack([
-            mo.md(f"**Plot {n}. {title}**"),
+            mo.md(f"**Plot {n}. {title}**\n\n*Why:* {why}"),
             mo.accordion({
-                "Details": mo.md(
-                    f"*Why:* {why}\n\n"
+                "How / how to read (click to expand)": mo.md(
                     f"*How:* {how}\n\n"
                     f"*How to read:* {how_to_read}"
                 ),
