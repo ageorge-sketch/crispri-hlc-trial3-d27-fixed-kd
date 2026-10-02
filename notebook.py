@@ -1,6 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
+#     "marimo>=0.25.1",
 #     "numpy==2.5.3",
 #     "pandas==3.0.6",
 #     "plotly==7.1.0",
@@ -11,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.1"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
@@ -20,28 +21,45 @@ def _(mo):
     mo.md("""
     # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
 
-    Six independent CD81 knockdown arms from the fixed HLC Trial3 D27 sample sheet
-    (`20260928_HLC_Trial3_D27_fixed`), each using a different viral-delivery
-    construct and/or cell line. Raw FCS files are parsed directly (no FlowJo CSV
-    export); events are compensated (least-squares spillover matrix from
-    single-stain control wells D1-D4), then gated through a cell gate (FSC-A
-    floor + SSC-A upper cap), a doublet gate (FSC-Width ceiling), and a singlet
-    gate (FSC-H:FSC-A ratio band) before any infection/guide marker is applied.
-    Knockdown is computed as the percentage-point shift in "% of cells below a
-    fixed gate" on the compensated CD81 antibody channel between a non-targeting
-    guide (ORK) and the CD81-targeting guide, within the infection/guide-positive
-    gated population, reported at both the 1st-percentile-of-mock (tail effect)
-    and 50th-percentile-of-mock (population-level shift) thresholds, alongside
-    median fluorescence intensity (MFI). Every chart and label throughout uses
-    reader-friendly condition/replicate names instead of well IDs (well IDs
-    appear only in metadata/gating-hierarchy tables where provenance matters).
-    Histogram and scatter traces pool replicate wells within each condition
-    group; histogram/scatter axes are cropped on the left to the 1st percentile
-    of the unstained control well's own signal. ASGR1 and Albumin readouts and
-    the K562/unfixed-folder wells are out of scope for the core knockdown
-    analysis (ASGR1/Albumin are used only for the marker-stratification tabs
-    within each arm) and the K562 wells are excluded throughout.
+    Six independent CD81 knockdown arms from the fixed HLC Trial3 D27 sample sheet,
+    each using a different viral-delivery construct and/or cell line. Knockdown is
+    reported as the percentage-point shift in "% of cells below a fixed gate" on
+    the compensated CD81 antibody channel (CD81-targeting guide vs. a
+    non-targeting/mock control), within the infection/guide-positive gated
+    population, at both the 1st-percentile-of-mock (tail effect) and
+    50th-percentile-of-mock (population-level shift) thresholds.
     """)
+    return
+
+
+@app.cell
+def _(mo, pd):
+    _arms_overview_rows = [
+        {"Arm": "Arm 1", "Construct / cell line": "pDRT103/pDRT106 split-GFP, 8_3",
+         "Guide type": "All-in-one guide+effector (ORK/CD81), split-GFP dual-infection marker",
+         "Key comparison": "CD81-targeting vs. ORK guide (+ pDRT109 transduction-only control)"},
+        {"Arm": "Arm 2", "Construct / cell line": "AA173 (guide) + AA239 (effector), 17_3",
+         "Guide type": "Two-virus, BFP+Thy1.1 double-positive gate",
+         "Key comparison": "CD81-targeting vs. ORK guide"},
+        {"Arm": "Arm 3", "Construct / cell line": "AA173 (guide) + AA239 (effector), 8_3",
+         "Guide type": "Two-virus, BFP+Thy1.1 double-positive gate",
+         "Key comparison": "CD81-targeting vs. ORK guide"},
+        {"Arm": "Arm 4", "Construct / cell line": "AA228 mCherry all-in-one, 8_3",
+         "Guide type": "All-in-one guide+effector (ORK/CD81), single mCherry marker",
+         "Key comparison": "CD81-targeting vs. ORK guide"},
+        {"Arm": "Arm 5", "Construct / cell line": "WTC11-KRAB integrated line + AA173 guide",
+         "Guide type": "Stably integrated, Dox-inducible dCas9-KRAB + lentiviral guide (ORK/CD81)",
+         "Key comparison": "Dox-on vs. Dox-off, within the CD81 guide (2x2 with guide identity)"},
+        {"Arm": "Arm 6", "Construct / cell line": "WTC11 fully-integrated CD81-BFP guide+effector, C1-C4",
+         "Guide type": "Integrated CD81-targeting guide; effector delivered via separate AA239 virus",
+         "Key comparison": "Effector delivered (+AA239) vs. no effector"},
+    ]
+    arms_overview_table = mo.ui.table(pd.DataFrame(_arms_overview_rows), selection=None)
+    arms_overview_section = mo.vstack([
+        mo.md("### Experimental arms at a glance"),
+        arms_overview_table,
+    ])
+    arms_overview_section
     return
 
 
@@ -113,18 +131,17 @@ def _(
         top_summary_table,
     ])
     top_summary
-
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""
-    ### How to read each panel below
-    Each accordion entry is one construct/cell-line arm: a short description of
-    the delivery biology, well metadata and a per-well gating-hierarchy table, a
-    peak-normalized pooled histogram + density-contour scatter of the CD81
-    readout channel (gated on infection markers, singlet/cell-gated, and
+    mo.accordion({
+        "How to read each arm's panel (click to expand)": mo.md("""
+    Each arm tab: a collapsed construct/methodology note, a **Well
+    metadata / Gating hierarchy / Infection-guide gating** tab group, a
+    peak-normalized pooled histogram + scatter plot (fixed-seed subsample) of the
+    CD81 readout channel (gated on infection markers, singlet/cell-gated, and
     compensated for cross-channel spillover; dashed red/purple lines = the
     1st-/50th-percentile-of-mock knockdown gates), reader-friendly per-replicate
     bar charts of "% below gate", MFI, and a tidy summary table. Histogram and
@@ -135,10 +152,9 @@ def _(mo):
     Every plot is numbered (Plot N) with a Why/How/How-to-read note before it and
     a Result line stating the actual computed numbers after it. Numbers follow
     each plot's position in the notebook's own cell-declaration order, not the
-    order a reader happens to click through tabs -- a plot inside a later tab can
-    have a lower number than one in an earlier tab if it was declared earlier in
-    the notebook's dataflow.
+    order a reader happens to click through tabs.
     """)
+    })
     return
 
 
@@ -366,18 +382,20 @@ def _(
     })
 
     infection_calibration_section = mo.vstack([
-        mo.md(
-            "## Infection-gate calibration\n"
-            "FlowJo-style gating histograms (biexponential x-axis, same "
-            "`arcsinh(x/cofactor)` transform used for the CD81 readout channels above) "
-            "for every infection/transduction marker gate actually used in the pipeline. "
-            "The Thy1.1-FITC gate (arms 2/3/6) uses an FMO-style stained-but-uninfected "
-            "reference well per cell line rather than the fully-unstained naive (both "
-            "traces are shown for comparison). **The sliders below are now the live "
-            "source of truth** for these gates -- moving one reactively re-runs every "
-            "arm that uses that (channel, reference-well) pair and updates its "
-            "knockdown numbers above."
-        ),
+        mo.md("## Infection-gate calibration"),
+        mo.accordion({
+            "Methodology (click to expand)": mo.md(
+                "FlowJo-style gating histograms (biexponential x-axis, same "
+                "`arcsinh(x/cofactor)` transform used for the CD81 readout channels above) "
+                "for every infection/transduction marker gate actually used in the pipeline. "
+                "The Thy1.1-FITC gate (arms 2/3/6) uses an FMO-style stained-but-uninfected "
+                "reference well per cell line rather than the fully-unstained naive (both "
+                "traces are shown for comparison). **The sliders below are now the live "
+                "source of truth** for these gates -- moving one reactively re-runs every "
+                "arm that uses that (channel, reference-well) pair and updates its "
+                "knockdown numbers above."
+            ),
+        }),
         infection_calibration_accordion,
     ])
     infection_calibration_section
@@ -413,24 +431,26 @@ def _(build_calibration_panel, mo, sample_sheet):
     })
 
     hepatocyte_marker_section = mo.vstack([
-        mo.md(
-            "## Hepatocyte marker gating (ASGR1, Albumin)\n"
-            "**ASGR1-FITC is excluded throughout this section and the stratified "
-            "knockdown analysis below** -- per the user, that specific ASGR1-FITC "
-            "antibody/clone is known non-specific/unreliable. Only wells stained with "
-            "the alternate **ASGR1-PE** channel are used for ASGR1 gating: arms 1, 2, "
-            "3, and 6 have ASGR1-PE available (gated below); **arm 5 (H3-H8) and arm "
-            "4 (G4-G7) only have ASGR1-FITC and are excluded from ASGR1 gating** "
-            "(arm 4 still gets Albumin gating, arm 5 has neither marker and is "
-            "dropped from the stratified section entirely). **Albumin** (goat "
-            "anti-Albumin + anti-goat Alexa Fluor 647, read in APC-A) is only "
-            "stained in arms 1 and 4. No well in this sample sheet stains the full "
-            "panel minus ASGR1 or minus Albumin specifically, so there is no true "
-            "FMO control for either marker; ASGR1 falls back to the fully-unstained "
-            "per-cell-line naive, and Albumin uses well D1 (8_3, CD81-BV421 stained "
-            "but no Albumin) as the closest available partial-stain reference -- "
-            "noted as a limitation, not fabricated data."
-        ),
+        mo.md("## Hepatocyte marker gating (ASGR1, Albumin)"),
+        mo.accordion({
+            "Methodology & caveats (click to expand)": mo.md(
+                "**ASGR1-FITC is excluded throughout this section and the stratified "
+                "knockdown analysis below** -- per the user, that specific ASGR1-FITC "
+                "antibody/clone is known non-specific/unreliable. Only wells stained with "
+                "the alternate **ASGR1-PE** channel are used for ASGR1 gating: arms 1, 2, "
+                "3, and 6 have ASGR1-PE available (gated below); **arm 5 (H3-H8) and arm "
+                "4 (G4-G7) only have ASGR1-FITC and are excluded from ASGR1 gating** "
+                "(arm 4 still gets Albumin gating, arm 5 has neither marker and is "
+                "dropped from the stratified section entirely). **Albumin** (goat "
+                "anti-Albumin + anti-goat Alexa Fluor 647, read in APC-A) is only "
+                "stained in arms 1 and 4. No well in this sample sheet stains the full "
+                "panel minus ASGR1 or minus Albumin specifically, so there is no true "
+                "FMO control for either marker; ASGR1 falls back to the fully-unstained "
+                "per-cell-line naive, and Albumin uses well D1 (8_3, CD81-BV421 stained "
+                "but no Albumin) as the closest available partial-stain reference -- "
+                "noted as a limitation, not fabricated data."
+            ),
+        }),
         hepatocyte_marker_tabs,
     ])
     hepatocyte_marker_section
@@ -505,7 +525,7 @@ def _(
 
     STRAT_ARM_CFGS = [
         {
-            "arm_label": "Arm 1: pDRT103/106, 8_3", "plot_start": 43, "naive_well": "A3",
+            "arm_label": "Arm 1: pDRT103/106, 8_3", "plot_start": 61, "naive_well": "A3",
             "groups": [
                 ("ORK (pDRT103 ORK + pDRT106)", ["B3", "B4"], [("FITC-A", infection_gate_widgets.value["FITC-A__A3"])]),
                 ("pDRT109 (transduction-only control + pDRT106)", ["B1", "B2"], [("FITC-A", infection_gate_widgets.value["FITC-A__A3"])]),
@@ -516,7 +536,7 @@ def _(
             "alb_gate": infection_gate_widgets.value["APC-A__D1_alb"],
         },
         {
-            "arm_label": "Arm 2: AA173+AA239, 17_3", "plot_start": 56, "naive_well": "A2",
+            "arm_label": "Arm 2: AA173+AA239, 17_3", "plot_start": 74, "naive_well": "A2",
             "groups": [
                 ("ORK (AA173 ORK + AA239)", ["C5", "C6"],
                  [("BV421-A", infection_gate_widgets.value["BV421-A__A2"]), ("FITC-A", infection_gate_widgets.value["FITC-A__A8_fmo"])]),
@@ -528,7 +548,7 @@ def _(
             "alb_gate": None,
         },
         {
-            "arm_label": "Arm 3: AA173+AA239, 8_3", "plot_start": 61, "naive_well": "A3",
+            "arm_label": "Arm 3: AA173+AA239, 8_3", "plot_start": 79, "naive_well": "A3",
             "groups": [
                 ("ORK (AA173 ORK + AA239)", ["C9", "C10"],
                  [("BV421-A", infection_gate_widgets.value["BV421-A__A3"]), ("FITC-A", infection_gate_widgets.value["FITC-A__D5_fmo"])]),
@@ -540,7 +560,7 @@ def _(
             "alb_gate": None,
         },
         {
-            "arm_label": "Arm 4: AA228 mCherry, 8_3", "plot_start": 66, "naive_well": "A3",
+            "arm_label": "Arm 4: AA228 mCherry, 8_3", "plot_start": 84, "naive_well": "A3",
             "groups": [
                 ("ORK (AA228 mCherry ORK)", ["G4", "G5"], [("Y610-mCHERRY-A", infection_gate_widgets.value["Y610-mCHERRY-A__A3"])]),
                 ("CD81 (AA228 mCherry CD81)", ["G6", "G7"], [("Y610-mCHERRY-A", infection_gate_widgets.value["Y610-mCHERRY-A__A3"])]),
@@ -550,7 +570,7 @@ def _(
             "alb_gate": infection_gate_widgets.value["APC-A__D1_alb"],
         },
         {
-            "arm_label": "Arm 6: WTC11 fully-integrated, C1-C4", "plot_start": 71, "naive_well": "A1",
+            "arm_label": "Arm 6: WTC11 fully-integrated, C1-C4", "plot_start": 89, "naive_well": "A1",
             "groups": [
                 ("No effector (BFP+ only, C3/C4)", ["C3", "C4"], [("BV421-A", infection_gate_widgets.value["BV421-A__A1"])]),
                 ("Effector delivered (BFP+ AND Thy1.1+, C1/C2)", ["C1", "C2"],
@@ -631,7 +651,7 @@ def _(
 
     def build_marker_stratum_block(cfg, stratum_label, asgr1_spec, alb_spec, plot_start):
         """Content for ONE stratum (e.g. 'ASGR1+') of one arm: pooled biexponential
-        CD81 histogram + paired density scatter (same convention as the main arms
+        CD81 histogram + paired scatter plot (same convention as the main arms
         section, dual 1st-/50th-percentile-of-mock dashed threshold lines) +
         reader-friendly per-replicate bar charts + a table filtered to this
         stratum."""
@@ -713,7 +733,7 @@ def _(
                 plot_start + 1, f"{arm_label} -- {stratum_label}: {readout_channel} vs SSC-A",
                 why=f"Checks the {stratum_label} population separation in 2D, the same purpose as the arm's unstratified scatter plot.",
                 how="Same computation as the arm's unstratified scatter plot, restricted to this stratum.",
-                how_to_read="Same density-contour layout as the unstratified scatter plot above.",
+                how_to_read="Same scatter-plot layout (fixed-seed subsample) as the unstratified scatter plot above.",
             ),
             fig_scatter,
         ]
@@ -1329,24 +1349,31 @@ def _(
         gate: float | None = None, gate_label: str = "",
         gate2: float | None = None, gate2_label: str = "", gate2_color: str = "purple",
     ):
-        """Density-contour scatter: one Histogram2dContour per pooled group
-        (lines-only, distinct colors) instead of overplotted raw markers.
-        Y-axis capped at the 99.5th percentile of the plotted events (display
-        only) so rare high-SSC-A outliers don't compress the main population."""
+        """Plain scatter plot (not a density/contour plot): a fixed-seed random
+        subsample of up to 3,000 events per pooled group (same
+        np.random.default_rng(0) convention used for the pooled debris/doublet
+        scatter checks elsewhere in this notebook), plotted as semi-transparent
+        markers, one color per group. Y-axis capped at the 99.5th percentile of
+        the plotted events (display only) so rare high-SSC-A outliers don't
+        compress the main population. X-axis range/transform always matches the
+        paired histogram for the same channel."""
         fig = go.Figure()
         colors = ["#4C78A8", "#E45756", "#54A24B", "#F58518", "#B279A2", "#72B7B2"]
+        rng = np.random.default_rng(0)
         all_y = np.concatenate([np.asarray(yv) for _, yv in traces.values()]) if traces else np.array([0.0])
         y_cap = float(np.percentile(all_y, 99.5)) if len(all_y) else 1.0
         for i, (label, (xv, yv)) in enumerate(traces.items()):
             xv = np.asarray(xv); yv = np.asarray(yv)
             if not len(xv):
                 continue
+            n = len(xv)
+            cap = min(n, 3000)
+            idx = rng.choice(n, cap, replace=False)
             _color = colors[i % len(colors)]
-            fig.add_trace(go.Histogram2dContour(
-                x=xv, y=yv, name=f"{label} (n={len(xv):,})",
-                contours=dict(coloring="lines", showlines=True),
-                line=dict(width=2, color=_color), colorscale=[[0, _color], [1, _color]],
-                showscale=False, showlegend=True, ncontours=8,
+            fig.add_trace(go.Scattergl(
+                x=xv[idx], y=yv[idx], mode="markers",
+                name=f"{label} (n={n:,}, shown={cap:,})",
+                marker=dict(size=3, opacity=0.35, color=_color),
             ))
         if gate is not None:
             add_threshold(fig, gate, gate_label, color="red", y=1.05)
@@ -1483,23 +1510,36 @@ def _(
     def plot_result(text):
         return mo.md(f"*Result:* {text}")
 
-    def gating_hierarchy_table(wells: list[str]):
-        """Per well: event counts and % of the previous step through all events
-        -> cells (FSC-A floor + SSC-A cap) -> single cells (+ doublet width cut
-        + FSC-H:FSC-A singlet band)."""
+    def gating_hierarchy_table(wells: list[str], marker_specs_by_well: dict | None = None, dox_wells: set | None = None):
+        """Per well: event counts and % of the previous step through the full
+        hierarchy used before the knockdown metric is computed: all events ->
+        cells (FSC-A floor + SSC-A cap) -> single cells (+ doublet width cut +
+        FSC-H:FSC-A singlet band) -> infection/guide-marker+ (this arm's AND-gate
+        of infection/transduction markers, applied on top of the singlet gate) ->
+        [Dox induction, metadata-only, where this arm has a dox-inducible design].
+        marker_specs_by_well/dox_wells are optional so this still works for any
+        caller that only wants the compensation/cell/singlet steps."""
         rows = []
         for w in wells:
             n_all = len(raw_wells[w])
             n_cell = len(_pre_singlet_gate(w))
             n_single = len(debris_gate(w))
-            rows.append({
+            row = {
                 "Well": w,
                 "All events": n_all,
                 "Cells (FSC-A floor + SSC-A cap)": n_cell,
                 "% of all events": round(100 * n_cell / n_all, 1) if n_all else 0.0,
                 "Single cells (+ width cut + FSC-H:FSC-A band)": n_single,
                 "% of cells": round(100 * n_single / n_cell, 1) if n_cell else 0.0,
-            })
+            }
+            if marker_specs_by_well is not None:
+                specs = marker_specs_by_well.get(w, [])
+                n_marker = len(apply_markers(w, specs)) if specs else n_single
+                row["Infection/guide-marker+ (AND gate)"] = n_marker
+                row["% of singlets"] = round(100 * n_marker / n_single, 1) if n_single else 0.0
+            if dox_wells is not None:
+                row["Dox induction"] = "Yes" if w in dox_wells else "No"
+            rows.append(row)
         return mo.ui.table(pd.DataFrame(rows), selection=None)
 
 
@@ -1562,7 +1602,12 @@ def _(
     ):
         """groups: list of (group_label, wells, marker_specs) -- marker_specs is a
         list of (channel, threshold) applied as an AND gate (empty list = no
-        infection gate, e.g. the fully-integrated stable line)."""
+        infection gate, e.g. the fully-integrated stable line).
+
+        Plot numbering: this arm consumes 7 plot numbers starting at plot_start --
+        CD81 readout histogram/scatter/bar1/bar50 (plot_start..+3, as before),
+        then the infection/guide-marker gating histogram/scatter/bar
+        (plot_start+4..+6, new)."""
         naive_vals = debris_gate(naive_well)[readout_channel].values
 
         per_well_rows = []
@@ -1596,7 +1641,7 @@ def _(
         gate_t = float(_tx(gate)) if gate is not None else None
         gate50_t = float(_tx(gate50)) if gate50 is not None else None
 
-        # Histogram and scatter/density traces both pool replicate wells within
+        # Histogram and scatter traces both pool replicate wells within
         # each condition group (one trace per group, not per well).
         hist_traces_by_group = {}
         scatter_traces_by_group = {}
@@ -1661,6 +1706,8 @@ def _(
             ctrl_mean50 = df.loc[df["label"] == control_label, "pct_below_gate50"].mean()
             df["knockdown_pp_50"] = df["pct_below_gate50"] - ctrl_mean50
 
+        colors_map = {g[0]: c for g, c in zip(groups, ["#4C78A8", "#E45756", "#54A24B", "#F58518"])}
+
         bar_fig = go.Figure()
         bar_fig_50 = go.Figure()
         if len(df):
@@ -1668,7 +1715,6 @@ def _(
             for label, wells, _ in groups:
                 rl.update(replicate_labels([w for w in wells if w in df["well"].values], group_label=label))
             x_labels = [rl.get(w, w) for w in df["well"]]
-            colors_map = {g[0]: c for g, c in zip(groups, ["#4C78A8", "#E45756", "#54A24B", "#F58518"])}
             bar_fig.add_trace(go.Bar(
                 x=x_labels, y=df["pct_below_gate"],
                 text=[f"{v:.1f}%<br>(n={n:,})" for v, n in zip(df["pct_below_gate"], df["n"])],
@@ -1703,7 +1749,153 @@ def _(
                      "Doxycycline Induction", "Virus 1 Type", "Virus 2 Type"]
         all_wells = [w for _, wells, _ in groups for w in wells]
         meta_table = mo.ui.table(sample_sheet.loc[all_wells, meta_cols], selection=None)
-        hierarchy_table = gating_hierarchy_table(all_wells)
+
+        # --- Infection/guide-marker (and, where applicable, Dox) gating step,
+        # inserted into the hierarchy table right before the knockdown metric. ---
+        marker_specs_by_well = {w: ms for _, wells, ms in groups for w in wells}
+        dox_wells = {w for w in all_wells if str(sample_sheet.loc[w, "Doxycycline Induction"]).strip().lower() == "yes"}
+        hierarchy_table = gating_hierarchy_table(
+            all_wells, marker_specs_by_well=marker_specs_by_well, dox_wells=dox_wells or None,
+        )
+
+        # --- Infection/guide-marker gating tab: same histogram+scatter+bar
+        # treatment given to the CD81 knockdown readout above, but for the
+        # marker channel(s) that gate infection/guide/effector delivery (and a
+        # note on Dox status for dox-inducible arms, since Dox is a treatment
+        # condition recorded in the sample sheet rather than its own flow
+        # channel). Uses the arm's first marker channel as the "primary" one
+        # shown as histogram/scatter; the bar chart's "% infected" always
+        # reflects the full AND-gate across every marker in this arm. ---
+        _primary_marker_channel = None
+        for _, _, _ms in groups:
+            if _ms:
+                _primary_marker_channel = _ms[0][0]
+                break
+
+        infection_blocks = []
+        if _primary_marker_channel is not None:
+            _marker_naive_vals = debris_gate(naive_well)[_primary_marker_channel].values
+            _marker_cofactor = channel_cofactor(_primary_marker_channel)
+
+            def _tx_marker(v):
+                return biexp(v, _marker_cofactor)
+
+            _marker_gate_val = next(
+                (thr for ch, thr in groups[0][2] if ch == _primary_marker_channel), None
+            )
+
+            _infect_hist_by_group = {}
+            _infect_scatter_by_group = {}
+            _infect_rows = []
+            for label, wells, marker_specs in groups:
+                for w in wells:
+                    d_pre = debris_gate(w)
+                    n_pre = len(d_pre)
+                    if n_pre:
+                        vals_t = _tx_marker(d_pre[_primary_marker_channel].values)
+                        _infect_hist_by_group.setdefault(label, []).append(vals_t)
+                        xs, ys = _infect_scatter_by_group.setdefault(label, ([], []))
+                        xs.append(vals_t)
+                        ys.append(d_pre["SSC-A"].values)
+                    n_pass = len(apply_markers(w, marker_specs)) if marker_specs else n_pre
+                    _infect_rows.append({
+                        "well": w, "label": label, "n": n_pre,
+                        "pct_infected": 100 * n_pass / n_pre if n_pre else float("nan"),
+                    })
+
+            _infect_hist_traces = {"unstained reference": _tx_marker(_marker_naive_vals)}
+            _infect_hist_traces.update({l: np.concatenate(v) for l, v in _infect_hist_by_group.items()})
+            _infect_scatter_traces = {
+                l: (np.concatenate(xs), np.concatenate(ys)) for l, (xs, ys) in _infect_scatter_by_group.items()
+            }
+            _infect_pooled = np.concatenate([
+                d_pre[_primary_marker_channel].values for w in all_wells
+                for d_pre in [debris_gate(w)] if len(d_pre)
+            ]) if all_wells else np.array([])
+            _infect_xr = gated_range(_marker_naive_vals, _infect_pooled, hi_pct=99.0)
+            _infect_xr_t = (float(_tx_marker(_infect_xr[0])), float(_tx_marker(_infect_xr[1])))
+            _infect_gate_t = float(_tx_marker(_marker_gate_val)) if _marker_gate_val is not None else None
+            _infect_gate_label = f"infection gate = {_marker_gate_val:,.0f}" if _marker_gate_val is not None else ""
+
+            _fig_infect_hist = interactive_hist(
+                _infect_hist_traces, _infect_gate_t, _infect_gate_label, _infect_xr_t,
+                f"Plot {plot_start + 4}. {title}: {_primary_marker_channel} infection/guide-marker distribution",
+            )
+            _fig_infect_scatter = scatter_gate(
+                _infect_scatter_traces, _infect_xr_t,
+                f"Plot {plot_start + 5}. {title}: {_primary_marker_channel} vs SSC-A",
+                y_chan="SSC-A", gate=_infect_gate_t, gate_label=_infect_gate_label,
+            )
+            _infect_tickvals, _infect_ticktext = biexp_ticks(_infect_xr[0], _infect_xr[1], _marker_cofactor)
+            for _f in (_fig_infect_hist, _fig_infect_scatter):
+                _f.update_layout(xaxis=dict(
+                    tickvals=_infect_tickvals, ticktext=_infect_ticktext,
+                    title=f"{_primary_marker_channel} (biexponential scale, original units)",
+                ))
+
+            _infect_df = pd.DataFrame(_infect_rows)
+            _rl_infect = {}
+            for label, wells, _ in groups:
+                _rl_infect.update(replicate_labels([w for w in wells if w in _infect_df["well"].values], group_label=label))
+            _infect_bar_fig = go.Figure()
+            _infect_bar_fig.add_trace(go.Bar(
+                x=[_rl_infect.get(w, w) for w in _infect_df["well"]], y=_infect_df["pct_infected"],
+                text=[f"{v:.1f}%<br>(n={n:,})" for v, n in zip(_infect_df["pct_infected"], _infect_df["n"])],
+                textposition="outside",
+                marker_color=[colors_map.get(l, "#999") for l in _infect_df["label"]],
+            ))
+            _ymax_i = max(50, float(_infect_df["pct_infected"].max()) * 1.25) if _infect_df["pct_infected"].notna().any() else 100
+            _infect_bar_fig.update_layout(
+                title=f"Plot {plot_start + 6}. {title}: % passing infection/guide-marker gate, per replicate",
+                yaxis_title="% infected/marker+", yaxis_range=[0, min(100, _ymax_i)],
+                height=380, margin=dict(t=60),
+            )
+
+            _n_markers = len({ch for _, _, ms in groups for ch, _ in ms})
+            _and_note = (
+                f" (shown histogram/scatter is this arm's primary marker, "
+                f"{_primary_marker_channel}; the bar chart's % reflects the full "
+                f"AND-gate across all {_n_markers} marker channels used in this arm.)"
+                if _n_markers > 1 else ""
+            )
+
+            infection_blocks = [
+                plot_overview(
+                    plot_start + 4, f"{title}: {_primary_marker_channel} infection/guide-marker distribution",
+                    why="States where the infection/guide-delivery marker gate sits relative to the reference well and this arm's sample wells, the step applied right before the knockdown metric.",
+                    how=f"{_primary_marker_channel} values (singlet/cell-gated and compensated, but before the marker threshold itself) are pooled across replicate wells within each condition group and histogrammed.{_and_note}",
+                    how_to_read="Same layout as the CD81 readout histogram above: biexponential x-axis, % of each group's peak count on the y-axis. The dashed red line is this arm's infection-gate threshold (set on the calibration sliders above).",
+                ),
+                _fig_infect_hist,
+                plot_overview(
+                    plot_start + 5, f"{title}: {_primary_marker_channel} vs SSC-A",
+                    how="Same pre-gate data as the histogram, shown as a scatter plot (fixed-seed subsample, up to 3,000 events per group) against SSC-A.",
+                    why="Checks the same marker separation in 2D, confirming the histogram gate isn't an artifact of pooling cells of very different granularity.",
+                    how_to_read="Each color is one condition group's subsampled events. The dashed red line marks the same infection-gate threshold as the histogram.",
+                ),
+                _fig_infect_scatter,
+                plot_overview(
+                    plot_start + 6, f"{title}: % passing infection/guide-marker gate",
+                    why="States the infection/transduction efficiency per replicate well directly -- low or uneven infection rates are a common explanation for noisy or discordant knockdown results.",
+                    how="Per-well % of singlet-gated cells passing this arm's infection/guide-marker AND-gate.",
+                    how_to_read="Each bar is one replicate well, labeled by condition group and replicate number (never a well ID).",
+                ),
+                _infect_bar_fig,
+            ]
+            if dox_wells:
+                infection_blocks.append(mo.md(
+                    "*Doxycycline induction is a treatment condition recorded in the "
+                    "sample sheet, not its own flow-cytometry channel, so it has no "
+                    "separate gate/histogram here -- Dox-on/Dox-off status is instead "
+                    "built into each condition group's label above (e.g. \"CD81, "
+                    "Dox-on\"), so the % infected/marker+ bars above are already "
+                    "broken out by Dox status; see the \"Dox induction\" column in "
+                    "the Gating hierarchy tab for the per-well record.*"
+                ))
+
+        infection_tab_content = mo.vstack(infection_blocks) if infection_blocks else mo.md(
+            "*No infection/guide marker gate is used in this arm.*"
+        )
 
         _metric_note = mo.md(
             "*Two complementary metrics below: the red **1st-percentile-of-mock** "
@@ -1720,11 +1912,23 @@ def _(
         _kd50 = float(df.loc[df["label"] == primary_label, "knockdown_pp_50"].mean()) if len(df) and "knockdown_pp_50" in df else float("nan")
         _n_primary = int(df.loc[df["label"] == primary_label, "n"].sum()) if len(df) else 0
 
-        blocks = [mo.md(description)]
+        # Methodology/construct prose is collapsed by default (accordion) --
+        # only the conclusion/numbers stay always-visible, per the notebook's
+        # streamlined-text convention.
+        blocks = [
+            mo.accordion({
+                "Construct details & metric methodology (click to expand)": mo.vstack([
+                    mo.md(description), _metric_note,
+                ]),
+            }),
+        ]
         if caveat:
             blocks.append(mo.callout(mo.md(caveat), kind="warn"))
-        blocks.append(mo.ui.tabs({"Well metadata": meta_table, "Gating hierarchy": hierarchy_table}))
-        blocks.append(_metric_note)
+        blocks.append(mo.ui.tabs({
+            "Well metadata": meta_table,
+            "Gating hierarchy": hierarchy_table,
+            "Infection/guide gating": infection_tab_content,
+        }))
         blocks.append(plot_overview(
             plot_start, f"{title}: {readout_channel} distribution",
             why=f"States whether {primary_label} cells show a {readout_channel} shift relative to {control_label}, the arm's core knockdown question.",
@@ -1745,8 +1949,8 @@ def _(
         blocks.append(plot_overview(
             plot_start + 1, f"{title}: {readout_channel} vs SSC-A",
             why="Checks the same group separation in 2D, confirming the histogram shift isn't an artifact of pooling cells of very different granularity (SSC-A).",
-            how="Same gated/compensated/pooled data as the histogram above, shown as a density contour (one contour per group) against SSC-A.",
-            how_to_read="Each contour is one condition group's 2D density. The SSC-A axis is capped at the 99.5th percentile of plotted events (display only). Dashed lines mark the same two gates as the histogram.",
+            how="Same gated/compensated/pooled data as the histogram above, shown as a scatter plot (fixed-seed subsample, up to 3,000 events per group) against SSC-A.",
+            how_to_read="Each color is one condition group's subsampled events. The SSC-A axis is capped at the 99.5th percentile of plotted events (display only). Dashed lines mark the same two gates as the histogram.",
         ))
         blocks.append(fig_scatter)
         if len(df):
@@ -1848,7 +2052,7 @@ def _(build_arm, infection_gate_widgets):
         ],
         readout_channel="APC-A",
         naive_well="A2",
-        plot_start=23,
+        plot_start=26,
     )
     arm2_content_base
     return arm2_content_base, arm2_summary
@@ -1872,7 +2076,7 @@ def _(build_arm, infection_gate_widgets):
         ],
         readout_channel="APC-A",
         naive_well="A3",
-        plot_start=27,
+        plot_start=33,
     )
     arm3_content_base
     return arm3_content_base, arm3_summary
@@ -1894,7 +2098,7 @@ def _(build_arm, infection_gate_widgets):
         readout_channel="BV421-A",
         naive_well="A3",
         summary_flag="Replicate split: G7 shows strong tail effect, G6 does not (see bar charts).",
-        plot_start=31,
+        plot_start=40,
     )
     arm4_content_base
     return arm4_content_base, arm4_summary
@@ -1923,7 +2127,7 @@ def _(build_arm, infection_gate_widgets):
         readout_channel="APC-A",
         naive_well="A1",
         control_group_index=0,
-        plot_start=35,
+        plot_start=47,
     )
     arm5_content
     return arm5_content, arm5_summary
@@ -1957,7 +2161,7 @@ def _(build_arm, infection_gate_widgets):
         naive_well="A1",
         control_group_index=0,
         summary_flag="Redefined: C3/C4 (no effector) vs C1/C2 (+AA239 effector), not the original Dox=Yes/No design.",
-        plot_start=39,
+        plot_start=54,
     )
     arm6_content_base
     return arm6_content_base, arm6_summary
