@@ -16,19 +16,6 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
-
-    Six CD81-knockdown arms, each a different viral-delivery construct and/or
-    cell line. Knockdown = percentage-point shift in "% of cells below a gate"
-    on the CD81 channel (guide vs. mock), at the 1st- and 50th-percentile
-    thresholds.
-    """)
-    return
-
-
 @app.cell
 def _(mo, pd):
     _arms_overview_rows = [
@@ -57,6 +44,19 @@ def _(mo, pd):
         arms_overview_table,
     ])
     arms_overview_section
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
+
+    Six CD81-knockdown arms, each a different viral-delivery construct and/or
+    cell line. Knockdown = percentage-point shift in "% of cells below a gate"
+    on the CD81 channel (guide vs. mock), at the 1st- and 50th-percentile
+    thresholds.
+    """)
     return
 
 
