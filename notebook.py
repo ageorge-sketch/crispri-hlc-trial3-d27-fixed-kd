@@ -61,73 +61,15 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(
-    arm1_summary,
-    arm2_summary,
-    arm3_summary,
-    arm4_summary,
-    arm5_summary,
-    arm6_summary,
-    go,
-    mo,
-    pd,
-    plot_overview,
-    plot_result,
-):
-    # Top-level summary intentionally shows only the 6 base unstratified arms
-    # (matches the state before the ASGR1/ALB stratification work). The
-    # marker-stratified comparison charts/TL;DR/sub-tabs live within each arm's
-    # own tab (see build_arm_with_strat) and are not duplicated here.
-    _summary_rows = [arm1_summary, arm2_summary, arm3_summary, arm4_summary, arm5_summary, arm6_summary]
-    _summary_df = pd.DataFrame(_summary_rows)
-    _summary_df["knockdown_pp_1st"] = _summary_df["knockdown_pp_1st"].round(1)
-    _summary_df["knockdown_pp_50th"] = _summary_df["knockdown_pp_50th"].round(1)
-    _summary_df = _summary_df.rename(columns={
-        "arm": "Arm", "cell_line": "Cell line", "mock_group": "Mock group", "guide_group": "Guide-active group",
-        "knockdown_pp_1st": "Knockdown, 1st pctile (pp)", "knockdown_pp_50th": "Knockdown, 50th pctile (pp)",
-        "flag": "Caveat",
-    })
-    top_summary_table = mo.ui.table(_summary_df, selection=None)
+def _(mo):
+    mo.md("""
+    # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
 
-    _colors = {"1st": "red", "50th": "purple"}
-    top_summary_fig = go.Figure()
-    top_summary_fig.add_trace(go.Bar(
-        x=[r["arm"] for r in _summary_rows], y=[r["knockdown_pp_1st"] for r in _summary_rows],
-        name="1st pctile (tail effect)", marker_color=_colors["1st"],
-        text=[f"{r['knockdown_pp_1st']:.1f}pp" for r in _summary_rows], textposition="outside",
-    ))
-    top_summary_fig.add_trace(go.Bar(
-        x=[r["arm"] for r in _summary_rows], y=[r["knockdown_pp_50th"] for r in _summary_rows],
-        name="50th pctile (population shift)", marker_color=_colors["50th"],
-        text=[f"{r['knockdown_pp_50th']:.1f}pp" for r in _summary_rows], textposition="outside",
-    ))
-    _all_vals = [r["knockdown_pp_1st"] for r in _summary_rows] + [r["knockdown_pp_50th"] for r in _summary_rows]
-    _ymax = max(50, max(v for v in _all_vals if v == v) * 1.25) if any(v == v for v in _all_vals) else 50
-    top_summary_fig.update_layout(
-        title="Plot 1. Bottom line across all 6 arms: knockdown (pp vs. mock), 1st vs. 50th percentile gate",
-        barmode="group", yaxis_title="Knockdown (percentage points)", yaxis_range=[0, _ymax],
-        height=420, margin=dict(t=60),
-        legend=dict(itemclick="toggle", itemdoubleclick="toggleothers"),
-    )
-
-    _best1 = max(_summary_rows, key=lambda r: r["knockdown_pp_1st"] if r["knockdown_pp_1st"] == r["knockdown_pp_1st"] else -1e9)
-    _best50 = max(_summary_rows, key=lambda r: r["knockdown_pp_50th"] if r["knockdown_pp_50th"] == r["knockdown_pp_50th"] else -1e9)
-
-    top_summary = mo.vstack([
-        plot_overview(
-            1, "Bottom line across all 6 arms",
-            why="States, for every arm, the headline knockdown number at both the tail-effect and population-shift metrics, so the arms can be compared directly.",
-            how="Each arm's primary guide-active/effector-active group's % below gate is compared to its own mock/control group's % below gate, at the 1st- and 50th-percentile-of-mock thresholds.",
-            how_to_read="Each arm gets one red bar (1st-percentile metric) and one purple bar (50th-percentile metric), both in percentage points of knockdown vs. that arm's own mock group.",
-        ),
-        top_summary_fig,
-        plot_result(
-            f"Largest 1st-percentile knockdown: {_best1['arm']} ({_best1['knockdown_pp_1st']:.1f}pp). "
-            f"Largest 50th-percentile knockdown: {_best50['arm']} ({_best50['knockdown_pp_50th']:.1f}pp)."
-        ),
-        top_summary_table,
-    ])
-    top_summary
+    Six CD81-knockdown arms, each a different viral-delivery construct and/or
+    cell line. Knockdown = percentage-point shift in "% of cells below a gate"
+    on the CD81 channel (guide vs. mock), at the 1st- and 50th-percentile
+    thresholds.
+    """)
     return
 
 
@@ -1785,10 +1727,10 @@ def _(
                     d_pre = debris_gate(w)
                     n_pre = len(d_pre)
                     if n_pre:
-                        vals_t = _tx_marker(d_pre[_ch].values)
-                        _ch_hist_by_group.setdefault(label, []).append(vals_t)
+                        _raw_vals = d_pre[_ch].values
+                        _ch_hist_by_group.setdefault(label, []).append(_raw_vals)
                         xs, ys = _ch_scatter_by_group.setdefault(label, ([], []))
-                        xs.append(vals_t)
+                        xs.append(_raw_vals)
                         ys.append(d_pre["SSC-A"].values)
                     n_pass = int(np.sum(d_pre[_ch].values > _ch_thr)) if n_pre and _ch_thr is not None else n_pre
                     _ch_rows.append({
@@ -1796,13 +1738,15 @@ def _(
                         "pct_infected": 100 * n_pass / n_pre if n_pre else float("nan"),
                     })
 
+            _ch_raw_group_vals = [np.concatenate(v) for v in _ch_hist_by_group.values()]
+            _ch_pooled_raw = np.concatenate(_ch_raw_group_vals) if _ch_raw_group_vals else np.array([])
+            _ch_xr = gated_range(_ch_naive_vals, _ch_pooled_raw, hi_pct=99.0, group_vals=_ch_raw_group_vals)
+
             _ch_hist_traces = {"unstained reference": _tx_marker(_ch_naive_vals)}
-            _ch_hist_traces.update({l: np.concatenate(v) for l, v in _ch_hist_by_group.items()})
+            _ch_hist_traces.update({l: _tx_marker(np.concatenate(v)) for l, v in _ch_hist_by_group.items()})
             _ch_scatter_traces = {
-                l: (np.concatenate(xs), np.concatenate(ys)) for l, (xs, ys) in _ch_scatter_by_group.items()
+                l: (_tx_marker(np.concatenate(xs)), np.concatenate(ys)) for l, (xs, ys) in _ch_scatter_by_group.items()
             }
-            _ch_pooled = np.concatenate(list(_ch_hist_traces.values())) if _ch_hist_traces else np.array([])
-            _ch_xr = gated_range(_ch_naive_vals, _ch_pooled, hi_pct=99.0, group_vals=list(_ch_hist_traces.values()))
             _ch_xr_t = (float(_tx_marker(_ch_xr[0])), float(_tx_marker(_ch_xr[1])))
             _ch_gate_t = float(_tx_marker(_ch_gate_val)) if _ch_gate_val is not None else None
             _ch_gate_label = f"{_ch} gate = {_ch_gate_val:,.0f}" if _ch_gate_val is not None else ""
@@ -2022,7 +1966,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=19,
     )
     arm1_content_base
-    return arm1_content_base, arm1_summary
+    return (arm1_content_base,)
 
 
 @app.cell(hide_code=True)
@@ -2047,7 +1991,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=26,
     )
     arm2_content_base
-    return arm2_content_base, arm2_summary
+    return (arm2_content_base,)
 
 
 @app.cell(hide_code=True)
@@ -2071,7 +2015,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=36,
     )
     arm3_content_base
-    return arm3_content_base, arm3_summary
+    return (arm3_content_base,)
 
 
 @app.cell(hide_code=True)
@@ -2093,7 +2037,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=46,
     )
     arm4_content_base
-    return arm4_content_base, arm4_summary
+    return (arm4_content_base,)
 
 
 @app.cell(hide_code=True)
@@ -2122,7 +2066,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=53,
     )
     arm5_content
-    return arm5_content, arm5_summary
+    return (arm5_content,)
 
 
 @app.cell(hide_code=True)
@@ -2156,7 +2100,7 @@ def _(build_arm, infection_gate_widgets):
         plot_start=60,
     )
     arm6_content_base
-    return arm6_content_base, arm6_summary
+    return (arm6_content_base,)
 
 
 @app.cell(hide_code=True)
