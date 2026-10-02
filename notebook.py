@@ -21,13 +21,11 @@ def _(mo):
     mo.md("""
     # CRISPRi HLC Trial3 D27 (fixed) -- CD81 knockdown analysis
 
-    Six independent CD81 knockdown arms from the fixed HLC Trial3 D27 sample sheet,
-    each using a different viral-delivery construct and/or cell line. Knockdown is
-    reported as the percentage-point shift in "% of cells below a fixed gate" on
-    the compensated CD81 antibody channel (CD81-targeting guide vs. a
-    non-targeting/mock control), within the infection/guide-positive gated
-    population, at both the 1st-percentile-of-mock (tail effect) and
-    50th-percentile-of-mock (population-level shift) thresholds.
+    Six CD81 knockdown arms from the fixed D27 sample sheet, each a different
+    viral-delivery construct and/or cell line. Knockdown = percentage-point shift
+    in "% of cells below a fixed gate" on the compensated CD81 channel (guide vs.
+    mock), within the infection/guide-positive population, at the 1st-percentile
+    (tail) and 50th-percentile (population) thresholds.
     """)
     return
 
@@ -138,21 +136,16 @@ def _(
 def _(mo):
     mo.accordion({
         "How to read each arm's panel (click to expand)": mo.md("""
-    Each arm tab: a collapsed construct/methodology note, a **Well
-    metadata / Gating hierarchy / Infection-guide gating** tab group, a
-    peak-normalized pooled histogram + scatter plot (fixed-seed subsample) of the
-    CD81 readout channel (gated on infection markers, singlet/cell-gated, and
-    compensated for cross-channel spillover; dashed red/purple lines = the
-    1st-/50th-percentile-of-mock knockdown gates), reader-friendly per-replicate
-    bar charts of "% below gate", MFI, and a tidy summary table. Histogram and
-    scatter traces pool replicate wells within each condition group; bar charts
-    and the gating-hierarchy table always show one entry per physical well,
-    labeled by condition group and replicate number rather than a well ID.
+    Each arm tab has a collapsed construct note, a **Well metadata / Gating
+    hierarchy / Infection-guide gating** tab group, a CD81-readout
+    histogram+scatter (dashed red/purple = 1st-/50th-percentile-of-mock gates),
+    per-replicate bar charts, and a summary table -- replicates are pooled in
+    histograms/scatter but always shown one-per-well in bars and tables, labeled
+    by condition + replicate number, never a well ID.
 
-    Every plot is numbered (Plot N) with a Why/How/How-to-read note before it and
-    a Result line stating the actual computed numbers after it. Numbers follow
-    each plot's position in the notebook's own cell-declaration order, not the
-    order a reader happens to click through tabs.
+    Every plot is numbered (Plot N); click "Details" under a title for the
+    Why/How/How-to-read note, and look for the *Result* line after each plot for
+    the actual computed numbers.
     """)
     })
     return
@@ -372,33 +365,7 @@ def _(
 
         return mo.vstack(blocks)
 
-    infection_calibration_accordion = mo.ui.tabs({
-        (
-            f"{cfg['channel']} FMO ref: {sample_sheet.loc[cfg['naive'], 'Cell Line']} (Thy1.1-stained/uninfected)"
-            if cfg["key"].endswith("_fmo")
-            else f"{cfg['channel']} naive: {sample_sheet.loc[cfg['naive'], 'Cell Line']} (unstained)"
-        ): build_calibration_panel(cfg)
-        for cfg in _CALIBRATION_CFGS
-    })
 
-    infection_calibration_section = mo.vstack([
-        mo.md("## Infection-gate calibration"),
-        mo.accordion({
-            "Methodology (click to expand)": mo.md(
-                "FlowJo-style gating histograms (biexponential x-axis, same "
-                "`arcsinh(x/cofactor)` transform used for the CD81 readout channels above) "
-                "for every infection/transduction marker gate actually used in the pipeline. "
-                "The Thy1.1-FITC gate (arms 2/3/6) uses an FMO-style stained-but-uninfected "
-                "reference well per cell line rather than the fully-unstained naive (both "
-                "traces are shown for comparison). **The sliders below are now the live "
-                "source of truth** for these gates -- moving one reactively re-runs every "
-                "arm that uses that (channel, reference-well) pair and updates its "
-                "knockdown numbers above."
-            ),
-        }),
-        infection_calibration_accordion,
-    ])
-    infection_calibration_section
     return (build_calibration_panel,)
 
 
@@ -1500,12 +1467,16 @@ def _(
         return out
 
     def plot_overview(n, title, why, how, how_to_read):
-        return mo.md(
-            f"**Plot {n}. {title}**\n\n"
-            f"*Why:* {why}\n\n"
-            f"*How:* {how}\n\n"
-            f"*How to read:* {how_to_read}"
-        )
+        return mo.vstack([
+            mo.md(f"**Plot {n}. {title}**"),
+            mo.accordion({
+                "Details": mo.md(
+                    f"*Why:* {why}\n\n"
+                    f"*How:* {how}\n\n"
+                    f"*How to read:* {how_to_read}"
+                ),
+            }),
+        ])
 
     def plot_result(text):
         return mo.md(f"*Result:* {text}")
