@@ -1900,6 +1900,7 @@ def _(
             "Gating hierarchy": hierarchy_table,
             "Infection/guide gating": infection_tab_content,
         }))
+        blocks.append(mo.md(f"## Knockdown: {readout_channel}"))
         blocks.append(plot_overview(
             plot_start, f"{title}: {readout_channel} distribution",
             why=f"States whether {primary_label} cells show a {readout_channel} shift relative to {control_label}, the arm's core knockdown question.",
